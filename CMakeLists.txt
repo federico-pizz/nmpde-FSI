@@ -1,7 +1,52 @@
-cmake_minimum_required(VERSION 3.12.0)
-project(project_title LANGUAGES CXX C)
 
-include(../common/cmake-common.cmake)
+cmake_minimum_required(VERSION 3.13.4)
 
-add_executable(lab-01 src/lab-01.cpp src/Poisson1D.cpp)
-deal_ii_setup_target(lab-01)
+project(FSI_NMPDE LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Set default build type to Debug.
+if(NOT CMAKE_BUILD_TYPE OR "${CMAKE_BUILD_TYPE}" STREQUAL "")
+  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
+endif()
+message(STATUS)
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS)
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+  add_definitions(-DBUILD_TYPE_DEBUG)
+endif()
+
+# Locate MPI compiler.
+find_package(MPI REQUIRED)
+
+# Locate Boost.
+find_package(Boost 1.72.0 REQUIRED
+  COMPONENTS filesystem iostreams serialization
+  HINTS ${BOOST_DIR} $ENV{BOOST_DIR} $ENV{mkBoostPrefix})
+message(STATUS "Using the Boost-${Boost_VERSION} configuration found at ${Boost_DIR}")
+message(STATUS)
+include_directories(${Boost_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src)
+
+# Locate deal.II and initialize its variables.
+find_package(deal.II 9.3.1 REQUIRED
+  HINTS ${DEAL_II_DIR} $ENV{DEAL_II_DIR} $ENV{mkDealiiPrefix})
+deal_ii_initialize_cached_variables()
+
+# Add useful compiler flags.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wfloat-conversion -Wmissing-braces -Wnon-virtual-dtor")
+
+
+# Build object library to compile core sources.
+add_library(FSI_lib OBJECT
+  src/FSI.cpp
+)
+deal_ii_setup_target(FSI_lib)
+target_link_libraries(FSI_lib Boost::filesystem Boost::iostreams Boost::serialization MPI::MPI_CXX)
+
+# Simple test executable to exercise compilation.
+add_executable(fsi_test_parallel_2D src/test_parallel_2D.cpp)
+target_link_libraries(fsi_test_parallel_2D FSI_lib)
+deal_ii_setup_target(fsi_test_parallel_2D)
+
+message(STATUS "Configured FSI project with deal.II")

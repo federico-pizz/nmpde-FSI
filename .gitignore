@@ -34,3 +34,11 @@
 *.app
 
 */build/*
+
+# Ignore build directory at root
+build/
+
+# VTK/VTU/VTPU files
+*.vtk
+*.vtu
+*.vtpu
